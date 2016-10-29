@@ -183,7 +183,7 @@ public static PrintWriter writer; // = new PrintWriter("the-file-name.txt", "UTF
         /* Print welcome message */
         System.out.println(
         "\n[***] Support: manuel.zarat@gmail.com\n" +
-        "\n[***] Dieses Programm dient ausschlieﬂlich Lernzwecken.\n" +
+        "\n[***] Dieses Programm dient ausschlie√ülich Lernzwecken.\n" +
         "[***] Absolut keine Garantie, daher Nutzung auf eigene Gefahr.\n" + 
         "[***] Bitte beachten Sie die jeweils geltenden Gesetze!!!\n");    
         
@@ -241,7 +241,7 @@ public static PrintWriter writer; // = new PrintWriter("the-file-name.txt", "UTF
         
         
         String t_out = "";      
-        int i = 1;
+        int i = 0;
         for (PcapIf device : alldevs) {
                    
             String description = (device.getDescription() != null) ? device.getDescription() : "keine Beschreibung";
@@ -267,7 +267,7 @@ public static PrintWriter writer; // = new PrintWriter("the-file-name.txt", "UTF
         int eingabe = new Integer(input.substring(0,1));
         System.out.println(""+eingabe);
                
-        PcapIf device = alldevs.get(eingabe-1);
+        PcapIf device = alldevs.get(eingabe);
                
         System.out.print("\n");  
        
