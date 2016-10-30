@@ -81,7 +81,7 @@ public static PrintWriter writer; // = new PrintWriter("the-file-name.txt", "UTF
 
 
   private static DefaultTableModel model;
-  private JTable table;
+  private static JTable table;
 
   public Sniffer() {
   
@@ -313,7 +313,8 @@ public static PrintWriter writer; // = new PrintWriter("the-file-name.txt", "UTF
   } 
   public static void addEntry(String url, String method, String cookie, String useragent) {
         String[] philosopher = { url, method, cookie, useragent};
-        model.addRow(philosopher);  
+        model.addRow(philosopher); 
+        table.scrollRectToVisible(table.getCellRect(table.getRowCount()-1, 0, true));
   }
   public static class Global{
       public static JFrame uniFrame = new JFrame();
