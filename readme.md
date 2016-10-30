@@ -2,7 +2,7 @@
 
 WinSniff ist in Java geschrieben und unterstützt derzeit nur HTTP. 
 WinSniff soll demnächst mit WinSpoof und weiteren Kommponenten zu einem größeren Projekt verschmelzen. 
-Es ist Datei enthalten:
+Es ist eine Datei enthalten:
 
 <pre>
 run.bat
